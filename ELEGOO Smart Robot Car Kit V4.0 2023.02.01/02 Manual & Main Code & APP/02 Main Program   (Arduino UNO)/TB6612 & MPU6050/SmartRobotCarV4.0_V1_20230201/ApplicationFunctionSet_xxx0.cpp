@@ -637,6 +637,37 @@ void ApplicationFunctionSet::ApplicationFunctionSet_Tracking(void)
 }
 
 /*
+  Continuous Servo Sweep + Ultrasonic Scan
+  Prints angle + distance to Serial Monitor
+*/
+
+void ApplicationFunctionSet::ApplicationFunctionSet_Sweep(void)
+{
+    static int16_t angle = 30;      // starting angle
+    static int8_t step = 30;         // sweep step size (smooth motion)
+    uint16_t distance = 0;
+
+    // Move servo to current angle
+    AppServo.DeviceDriverSet_Servo_control(angle);
+
+    // Read ultrasonic distance
+    AppULTRASONIC.DeviceDriverSet_ULTRASONIC_Get(&distance);
+
+    // Print results
+    Serial.print("Sweep Angle: ");
+    Serial.print(angle);
+    Serial.print(" deg | Distance: ");
+    Serial.print(distance);
+    Serial.println(" cm");
+
+    // Sweep direction logic
+    angle += step;
+
+    if (angle >= 150) step = -30;   // reverse at right limit
+    if (angle <= 30)  step = 30;    // reverse at left limit
+}
+
+/*
   Obstacle Avoidance Mode
 */
 void ApplicationFunctionSet::ApplicationFunctionSet_Obstacle(void)

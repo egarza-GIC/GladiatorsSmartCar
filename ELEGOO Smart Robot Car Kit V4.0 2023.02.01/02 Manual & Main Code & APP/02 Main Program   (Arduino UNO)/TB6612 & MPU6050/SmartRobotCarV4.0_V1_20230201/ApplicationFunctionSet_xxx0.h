@@ -20,6 +20,7 @@ public:
   void ApplicationFunctionSet_Expression(void);
   void ApplicationFunctionSet_Rocker(void);             //APP Rocker Control
   void ApplicationFunctionSet_Tracking(void);           //Line Tracking Mode
+  void ApplicationFunctionSet_Sweep(void);              //Continuous Ultrasonic Sweeping
   void ApplicationFunctionSet_Obstacle(void);           //Obstacle Avoidance
   void ApplicationFunctionSet_Follow(void);             //Following Mode
   void ApplicationFunctionSet_Servo(uint8_t Set_Servo); //Servo Control
