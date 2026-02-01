@@ -23,7 +23,7 @@ void loop()
   //put your main code here, to run repeatedly :s
   wdt_reset();
 
-  Application_FunctionSet.ApplicationFunctionSet_Sweep();
+  // Application_FunctionSet.ApplicationFunctionSet_Sweep(&outdistance, &outangle);
 
   Application_FunctionSet.ApplicationFunctionSet_SensorDataUpdate();
   Application_FunctionSet.ApplicationFunctionSet_KeyCommand();
