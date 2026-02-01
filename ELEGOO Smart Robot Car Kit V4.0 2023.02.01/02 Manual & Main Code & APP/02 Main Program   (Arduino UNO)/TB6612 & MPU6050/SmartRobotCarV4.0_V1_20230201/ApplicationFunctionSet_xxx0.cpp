@@ -101,7 +101,7 @@ bool ApplicationFunctionSet_SmartRobotCarLeaveTheGround(void);
 void ApplicationFunctionSet_SmartRobotCarLinearMotionControl(SmartRobotCarMotionControl direction, uint8_t directionRecord, uint8_t speed, uint8_t Kp, uint8_t UpperLimit);
 void ApplicationFunctionSet_SmartRobotCarMotionControl(SmartRobotCarMotionControl direction, uint8_t is_speed);
 
-void ApplicationFunctionSet::ApplicationFunctionSet_Init(void)
+void ApplicationFunctionSet::ApplicationFunctionSet_Init(Memory &mem)
 {
   bool res_error = true;
   Serial.begin(9600);
@@ -120,7 +120,24 @@ void ApplicationFunctionSet::ApplicationFunctionSet_Init(void)
   // {
   //   /*Clear serial port buffer...*/
   // }
+
+  AppServo.DeviceDriverSet_Servo_control(30);
+  delay(200);
+  AppULTRASONIC.DeviceDriverSet_ULTRASONIC_Get(&mem.right);
+
+  AppServo.DeviceDriverSet_Servo_control(150);
+  delay(200);
+  AppULTRASONIC.DeviceDriverSet_ULTRASONIC_Get(&mem.left);
+
+  AppServo.DeviceDriverSet_Servo_control(90);
+  delay(200);
+  AppULTRASONIC.DeviceDriverSet_ULTRASONIC_Get(&mem.center);
+
+  Serial.println("Inital Distances");
+  Serial.println(String("left: ") + mem.left + "  center: " + mem.center + "  right: " + mem.right);
+  
   Application_SmartRobotCarxxx0.Functional_Mode = Standby_mode;
+
 }
 
 /*ITR20001 Check if the car leaves the ground*/
@@ -647,31 +664,38 @@ void ApplicationFunctionSet::ApplicationFunctionSet_Tracking(void)
   Pattern: 30 → 90 → 150 → 90 → 30 → 90 → ...
 */
 
-void ApplicationFunctionSet::ApplicationFunctionSet_Sweep(uint16_t &outDistance, uint8_t &outAngle)
+void ApplicationFunctionSet::ApplicationFunctionSet_Sweep(Memory &mem, uint16_t &outDistance, uint8_t &outAngle)
 {
     static int8_t state = 0;     // 0=30°, 1=90°, 2=150°
     static int8_t direction = 1; // +1 going right, -1 going left
 
-    // Convert state to angle
-    switch (state) {
-        case 0: outAngle = 30;  break;
-        case 1: outAngle = 90;  break;
-        case 2: outAngle = 150; break;
-    }
-
-    // Move servo
-    AppServo.DeviceDriverSet_Servo_control(outAngle);
-
-    // Read ultrasonic
     AppULTRASONIC.DeviceDriverSet_ULTRASONIC_Get(&outDistance);
 
-    // Debug output
-    Serial.print("Sweep Angle: ");
-    Serial.print(outAngle);
-    Serial.print(" | Distance: ");
-    Serial.print(outDistance);
-    Serial.println(" cm");
+    // Convert state to angle
+    switch (state) {
+        case 0:
+          outAngle = 30;
+          AppServo.DeviceDriverSet_Servo_control(outAngle);
+          mem.left = outDistance;
+          break;
+        case 1: 
+          outAngle = 90;  
+          AppServo.DeviceDriverSet_Servo_control(outAngle);
+          mem.center = outDistance;
+          break;
+        case 2: 
+        outAngle = 150; 
+          AppServo.DeviceDriverSet_Servo_control(outAngle);
+          mem.right = outDistance;
+          break;
+    }
 
+    // Debug output
+    Serial.println(
+        String("L: ") + mem.left +
+        "  C: " + mem.center +
+        "  R: " + mem.right
+    );
     // Advance state in ping‑pong pattern
     state += direction;
 
@@ -685,7 +709,7 @@ void ApplicationFunctionSet::ApplicationFunctionSet_Sweep(uint16_t &outDistance,
   Uses sweep data to steer toward open space
 */
 
-void ApplicationFunctionSet::ApplicationFunctionSet_Obstacle(void)
+void ApplicationFunctionSet::ApplicationFunctionSet_Obstacle(Memory &mem)
 {
     if (Application_SmartRobotCarxxx0.Functional_Mode != ObstacleAvoidance_mode)
         return;
@@ -699,7 +723,7 @@ void ApplicationFunctionSet::ApplicationFunctionSet_Obstacle(void)
     uint8_t angle = 90;
 
     // Get continuous sweep data
-    ApplicationFunctionSet_Sweep(distance, angle);
+    ApplicationFunctionSet_Sweep(mem, distance, angle);
 
     const uint16_t dangerDist = 25;   // stop immediately
     const uint16_t steerDist  = 40;   // start steering
@@ -735,100 +759,80 @@ void ApplicationFunctionSet::ApplicationFunctionSet_Obstacle(void)
 void ApplicationFunctionSet::ApplicationFunctionSet_Follow(void)
 {
   static uint16_t ULTRASONIC_Get = 0;
-  static unsigned long ULTRASONIC_time = 0;
-  static uint8_t Position_Servo = 1;
-  static uint8_t timestamp = 3;
-  static uint8_t OneCycle = 1;
-  if (Application_SmartRobotCarxxx0.Functional_Mode == Follow_mode)
+  static uint8_t Position_Servo = 1;      // 1: center, 2: right, 3: center, 4: left
+  static unsigned long servoTime = 0;
+
+  if (Application_SmartRobotCarxxx0.Functional_Mode != Follow_mode)
   {
+    ULTRASONIC_Get = 0;
+    Position_Servo = 1;
+    return;
+  }
 
-    if (Car_LeaveTheGround == false)
+  if (Car_LeaveTheGround == false)
+  {
+    ApplicationFunctionSet_SmartRobotCarMotionControl(stop_it, 0);
+    return;
+  }
+
+  // Always read distance straight ahead (servo assumed near center most of the time)
+  AppULTRASONIC.DeviceDriverSet_ULTRASONIC_Get(&ULTRASONIC_Get);
+
+  // If something is closer than 20 cm → FOLLOW / REACT
+  if (function_xxx(ULTRASONIC_Get, 0, 20))   // distance <= 20
+  {
+    // Decide motion based on current servo position
+    if (Position_Servo == 1 || Position_Servo == 3)
     {
-      ApplicationFunctionSet_SmartRobotCarMotionControl(stop_it, 0);
-      return;
+      // Center → move forward
+      ApplicationFunctionSet_SmartRobotCarMotionControl(Forward, 100);
     }
-    AppULTRASONIC.DeviceDriverSet_ULTRASONIC_Get(&ULTRASONIC_Get /*out*/);
-    if (false == function_xxx(ULTRASONIC_Get, 0, 20)) //There is no obstacle 20 cm ahead?
+    else if (Position_Servo == 2)
     {
+      // Right → turn right
+      ApplicationFunctionSet_SmartRobotCarMotionControl(Right, 100);
+      delay(120);  // short pulse turn
       ApplicationFunctionSet_SmartRobotCarMotionControl(stop_it, 0);
-      static unsigned long time_Servo = 0;
-      static uint8_t Position_Servo_xx = 0;
-
-      if (timestamp == 3)
-      {
-        if (Position_Servo_xx != Position_Servo) //Act on servo motor：avoid loop execution
-        {
-          Position_Servo_xx = Position_Servo; //Act on servo motor：rotation angle record
-
-          if (Position_Servo == 1)
-          {
-            time_Servo = millis();
-            AppServo.DeviceDriverSet_Servo_control(80 /*Position_angle*/);
-          }
-          else if (Position_Servo == 2)
-          {
-            time_Servo = millis();
-            AppServo.DeviceDriverSet_Servo_control(20 /*Position_angle*/);
-          }
-          else if (Position_Servo == 3)
-          {
-            time_Servo = millis();
-            AppServo.DeviceDriverSet_Servo_control(80 /*Position_angle*/);
-          }
-          else if (Position_Servo == 4)
-          {
-            time_Servo = millis();
-            AppServo.DeviceDriverSet_Servo_control(150 /*Position_angle*/);
-          }
-        }
-      }
-      else
-      {
-        if (timestamp == 1)
-        {
-          timestamp = 2;
-          time_Servo = millis();
-        }
-      }
-      if (millis() - time_Servo > 1000) //Act on servo motor：stop at the current location for 2s
-      {
-        timestamp = 3;
-        Position_Servo += 1;
-        OneCycle += 1;
-        if (OneCycle > 4)
-        {
-          Position_Servo = 1;
-          OneCycle = 5;
-        }
-      }
     }
-    else
+    else if (Position_Servo == 4)
     {
-      OneCycle = 1;
-      timestamp = 1;
-      if ((Position_Servo == 1))
-      { /*Move forward*/
-        ApplicationFunctionSet_SmartRobotCarMotionControl(Forward, 100);
-      }
-      else if ((Position_Servo == 2))
-      { /*Turn right*/
-        ApplicationFunctionSet_SmartRobotCarMotionControl(Right, 150);
-      }
-      else if ((Position_Servo == 3))
-      {
-        /*Move forward*/
-        ApplicationFunctionSet_SmartRobotCarMotionControl(Forward, 100);
-      }
-      else if ((Position_Servo == 4))
-      { /*Turn left*/
-        ApplicationFunctionSet_SmartRobotCarMotionControl(Left, 150);
-      }
+      // Left → turn left
+      ApplicationFunctionSet_SmartRobotCarMotionControl(Left, 100);
+      delay(120);  // short pulse turn
+      ApplicationFunctionSet_SmartRobotCarMotionControl(stop_it, 0);
     }
   }
   else
   {
-    ULTRASONIC_Get = 0;
-    ULTRASONIC_time = 0;
+    // Nothing close → stop and sweep to look for something
+    ApplicationFunctionSet_SmartRobotCarMotionControl(stop_it, 0);
+
+    // Time-based sweep through 4 positions
+    if (millis() - servoTime > 400)   // adjust speed of sweep here
+    {
+      servoTime = millis();
+
+      if (Position_Servo == 1)
+      {
+        AppServo.DeviceDriverSet_Servo_control(20);   // look right
+        Position_Servo = 2;
+      }
+      else if (Position_Servo == 2)
+      {
+        AppServo.DeviceDriverSet_Servo_control(80);   // center
+        Position_Servo = 3;
+      }
+      else if (Position_Servo == 3)
+      {
+        AppServo.DeviceDriverSet_Servo_control(150);  // look left
+        Position_Servo = 4;
+      }
+      else if (Position_Servo == 4)
+      {
+        AppServo.DeviceDriverSet_Servo_control(80);   // back to center
+        Position_Servo = 1;
+      }
+    }
   }
 }
 

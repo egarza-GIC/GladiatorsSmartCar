@@ -9,11 +9,12 @@
 #include <avr/wdt.h>
 #include "ApplicationFunctionSet_xxx0.h"
 
+Memory mem;
 
 void setup()
 {
   // put your setup code here, to run once:
-  Application_FunctionSet.ApplicationFunctionSet_Init();
+  Application_FunctionSet.ApplicationFunctionSet_Init(mem);
   wdt_enable(WDTO_2S);
 }
 
@@ -29,7 +30,7 @@ void loop()
   Application_FunctionSet.ApplicationFunctionSet_KeyCommand();
   Application_FunctionSet.ApplicationFunctionSet_RGB();
   Application_FunctionSet.ApplicationFunctionSet_Follow();
-  Application_FunctionSet.ApplicationFunctionSet_Obstacle();
+  Application_FunctionSet.ApplicationFunctionSet_Obstacle(mem);
   Application_FunctionSet.ApplicationFunctionSet_Tracking();
   Application_FunctionSet.ApplicationFunctionSet_Rocker();
   Application_FunctionSet.ApplicationFunctionSet_Standby();

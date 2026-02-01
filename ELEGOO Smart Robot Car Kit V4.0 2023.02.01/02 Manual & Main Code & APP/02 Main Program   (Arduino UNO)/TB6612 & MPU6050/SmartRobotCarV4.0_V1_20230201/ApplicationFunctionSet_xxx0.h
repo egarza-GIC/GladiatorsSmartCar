@@ -11,17 +11,23 @@
 
 #include <Arduino.h>
 
+struct Memory {
+    uint16_t left;
+    uint16_t center;
+    uint16_t right;
+};
+
 class ApplicationFunctionSet
 {
 public:
-  void ApplicationFunctionSet_Init(void);
+  void ApplicationFunctionSet_Init(Memory &mem);
   void ApplicationFunctionSet_Bootup(void);
   void ApplicationFunctionSet_RGB(void);
   void ApplicationFunctionSet_Expression(void);
   void ApplicationFunctionSet_Rocker(void);             //APP Rocker Control
   void ApplicationFunctionSet_Tracking(void);           //Line Tracking Mode
-  void ApplicationFunctionSet_Sweep(uint16_t&, uint8_t&);              //Continuous Ultrasonic Sweeping
-  void ApplicationFunctionSet_Obstacle(void);           //Obstacle Avoidance
+  void ApplicationFunctionSet_Sweep(Memory &mem, uint16_t&, uint8_t&);              //Continuous Ultrasonic Sweeping
+  void ApplicationFunctionSet_Obstacle(Memory &mem);           //Obstacle Avoidance
   void ApplicationFunctionSet_Follow(void);             //Following Mode
   void ApplicationFunctionSet_Servo(uint8_t Set_Servo); //Servo Control
   void ApplicationFunctionSet_Standby(void);            //Standby Mode
