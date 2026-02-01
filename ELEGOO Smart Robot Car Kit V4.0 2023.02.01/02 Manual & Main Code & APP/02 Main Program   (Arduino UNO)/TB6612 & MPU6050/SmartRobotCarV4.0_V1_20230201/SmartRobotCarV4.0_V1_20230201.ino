@@ -9,13 +9,6 @@
 #include <avr/wdt.h>
 #include "ApplicationFunctionSet_xxx0.h"
 
-#include <Servo.h>
-
-#define TRIG 2
-#define ECHO 3
-#define IR_LEFT 4
-#define IR_RIGHT 5
-
 
 void setup()
 {
