@@ -637,33 +637,47 @@ void ApplicationFunctionSet::ApplicationFunctionSet_Tracking(void)
 }
 
 /*
-  Continuous Sweep Function
+  Continuous Sweep Function (3 fixed positions)
+  Rotates servo only to 30°, 90°, and 150°
   Returns angle + distance for use by obstacle avoidance
+*/
+
+/*
+  3‑Position Ping‑Pong Sweep
+  Pattern: 30 → 90 → 150 → 90 → 30 → 90 → ...
 */
 
 void ApplicationFunctionSet::ApplicationFunctionSet_Sweep(uint16_t &outDistance, uint8_t &outAngle)
 {
-    static int16_t angle = 30;     // sweep start
-    static int8_t step = 30;        // sweep increment
+    static int8_t state = 0;     // 0=30°, 1=90°, 2=150°
+    static int8_t direction = 1; // +1 going right, -1 going left
+
+    // Convert state to angle
+    switch (state) {
+        case 0: outAngle = 30;  break;
+        case 1: outAngle = 90;  break;
+        case 2: outAngle = 150; break;
+    }
 
     // Move servo
-    AppServo.DeviceDriverSet_Servo_control(angle);
+    AppServo.DeviceDriverSet_Servo_control(outAngle);
 
-    // Read ultrasonic distance
+    // Read ultrasonic
     AppULTRASONIC.DeviceDriverSet_ULTRASONIC_Get(&outDistance);
-    outAngle = angle;
 
-    // Sweep logic
-    angle += step;
-    if (angle >= 150) step = -30;
-    if (angle <= 30)  step = 30;
-
-    // Optional debug output
+    // Debug output
     Serial.print("Sweep Angle: ");
     Serial.print(outAngle);
     Serial.print(" | Distance: ");
     Serial.print(outDistance);
     Serial.println(" cm");
+
+    // Advance state in ping‑pong pattern
+    state += direction;
+
+    // Reverse direction at ends
+    if (state >= 2) direction = -1;   // hit 150°, go back toward 90°
+    if (state <= 0) direction = 1;    // hit 30°, go forward toward 90°
 }
 
 /*
@@ -693,9 +707,9 @@ void ApplicationFunctionSet::ApplicationFunctionSet_Obstacle(void)
     // Emergency stop + reverse
     if (distance < dangerDist) {
         ApplicationFunctionSet_SmartRobotCarMotionControl(stop_it, 0);
-        ApplicationFunctionSet_SmartRobotCarMotionControl(Backward, 75);
+        ApplicationFunctionSet_SmartRobotCarMotionControl(Backward, 100);
         delay_xxx(300);
-        ApplicationFunctionSet_SmartRobotCarMotionControl(Right, 90);
+        ApplicationFunctionSet_SmartRobotCarMotionControl(Right, 100);
         delay_xxx(200);
         return;
     }
