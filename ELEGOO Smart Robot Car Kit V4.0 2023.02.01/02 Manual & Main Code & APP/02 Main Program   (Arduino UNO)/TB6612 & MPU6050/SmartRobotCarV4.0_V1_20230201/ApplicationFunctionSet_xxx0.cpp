@@ -637,111 +637,82 @@ void ApplicationFunctionSet::ApplicationFunctionSet_Tracking(void)
 }
 
 /*
-  Continuous Servo Sweep + Ultrasonic Scan
-  Prints angle + distance to Serial Monitor
+  Continuous Sweep Function
+  Returns angle + distance for use by obstacle avoidance
 */
 
-void ApplicationFunctionSet::ApplicationFunctionSet_Sweep(void)
+void ApplicationFunctionSet::ApplicationFunctionSet_Sweep(uint16_t &outDistance, uint8_t &outAngle)
 {
-    static int16_t angle = 30;      // starting angle
-    static int8_t step = 30;         // sweep step size (smooth motion)
-    uint16_t distance = 0;
+    static int16_t angle = 30;     // sweep start
+    static int8_t step = 30;        // sweep increment
 
-    // Move servo to current angle
+    // Move servo
     AppServo.DeviceDriverSet_Servo_control(angle);
 
     // Read ultrasonic distance
-    AppULTRASONIC.DeviceDriverSet_ULTRASONIC_Get(&distance);
+    AppULTRASONIC.DeviceDriverSet_ULTRASONIC_Get(&outDistance);
+    outAngle = angle;
 
-    // Print results
-    Serial.print("Sweep Angle: ");
-    Serial.print(angle);
-    Serial.print(" deg | Distance: ");
-    Serial.print(distance);
-    Serial.println(" cm");
-
-    // Sweep direction logic
+    // Sweep logic
     angle += step;
+    if (angle >= 150) step = -30;
+    if (angle <= 30)  step = 30;
 
-    if (angle >= 150) step = -30;   // reverse at right limit
-    if (angle <= 30)  step = 30;    // reverse at left limit
+    // Optional debug output
+    Serial.print("Sweep Angle: ");
+    Serial.print(outAngle);
+    Serial.print(" | Distance: ");
+    Serial.print(outDistance);
+    Serial.println(" cm");
 }
 
 /*
-  Obstacle Avoidance Mode
+  Continuous‑Scan Obstacle Avoidance
+  Uses sweep data to steer toward open space
 */
+
 void ApplicationFunctionSet::ApplicationFunctionSet_Obstacle(void)
 {
-  static boolean first_is = true;
-  if (Application_SmartRobotCarxxx0.Functional_Mode == ObstacleAvoidance_mode)
-  {
-    uint8_t switc_ctrl = 0;
-    uint16_t get_Distance;
-    if (Car_LeaveTheGround == false)
-    {
-      ApplicationFunctionSet_SmartRobotCarMotionControl(stop_it, 0);
-      return;
-    }
-    if (first_is == true) //Enter the mode for the first time, and modulate the steering gear to 90 degrees
-    {
-      AppServo.DeviceDriverSet_Servo_control(90 /*Position_angle*/);
-      first_is = false;
+    if (Application_SmartRobotCarxxx0.Functional_Mode != ObstacleAvoidance_mode)
+        return;
+
+    if (Car_LeaveTheGround == false) {
+        ApplicationFunctionSet_SmartRobotCarMotionControl(stop_it, 0);
+        return;
     }
 
-    AppULTRASONIC.DeviceDriverSet_ULTRASONIC_Get(&get_Distance /*out*/);
-    if (function_xxx(get_Distance, 0, 20))
-    {
-      ApplicationFunctionSet_SmartRobotCarMotionControl(stop_it, 0);
+    uint16_t distance = 0;
+    uint8_t angle = 90;
 
-      for (uint8_t i = 1; i < 6; i += 2) //1、3、5 Omnidirectional detection of obstacle avoidance status
-      {
-        AppServo.DeviceDriverSet_Servo_control(30 * i /*Position_angle*/);
-        delay_xxx(1);
-        AppULTRASONIC.DeviceDriverSet_ULTRASONIC_Get(&get_Distance /*out*/);
+    // Get continuous sweep data
+    ApplicationFunctionSet_Sweep(distance, angle);
 
-        if (function_xxx(get_Distance, 0, 20))
-        {
-          ApplicationFunctionSet_SmartRobotCarMotionControl(stop_it, 0);
-          if (5 == i)
-          {
-            ApplicationFunctionSet_SmartRobotCarMotionControl(Backward, 150);
-            delay_xxx(500);
+    const uint16_t dangerDist = 25;   // stop immediately
+    const uint16_t steerDist  = 40;   // start steering
+
+    // Emergency stop + reverse
+    if (distance < dangerDist) {
+        ApplicationFunctionSet_SmartRobotCarMotionControl(stop_it, 0);
+        ApplicationFunctionSet_SmartRobotCarMotionControl(Backward, 75);
+        delay_xxx(300);
+        ApplicationFunctionSet_SmartRobotCarMotionControl(Right, 90);
+        delay_xxx(200);
+        return;
+    }
+
+    // Steering logic based on sweep angle
+    if (distance < steerDist) {
+        if (angle < 90) {
+            // obstacle on left side → steer right
             ApplicationFunctionSet_SmartRobotCarMotionControl(Right, 150);
-            delay_xxx(50);
-            first_is = true;
-            break;
-          }
-        }
-        else
-        {
-          switc_ctrl = 0;
-          switch (i)
-          {
-          case 1:
-            ApplicationFunctionSet_SmartRobotCarMotionControl(Right, 150);
-            break;
-          case 3:
-            ApplicationFunctionSet_SmartRobotCarMotionControl(Forward, 150);
-            break;
-          case 5:
+        } else {
+            // obstacle on right side → steer left
             ApplicationFunctionSet_SmartRobotCarMotionControl(Left, 150);
-            break;
-          }
-          delay_xxx(50);
-          first_is = true;
-          break;
         }
-      }
+    } else {
+        // Path is clear → move forward
+        ApplicationFunctionSet_SmartRobotCarMotionControl(Forward, 150);
     }
-    else //if (function_xxx(get_Distance, 20, 50))
-    {
-      ApplicationFunctionSet_SmartRobotCarMotionControl(Forward, 150);
-    }
-  }
-  else
-  {
-    first_is = true;
-  }
 }
 
 /*
