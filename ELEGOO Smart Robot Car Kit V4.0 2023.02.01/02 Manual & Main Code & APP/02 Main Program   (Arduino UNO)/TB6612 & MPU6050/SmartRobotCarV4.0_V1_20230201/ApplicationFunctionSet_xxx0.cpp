@@ -684,7 +684,7 @@ void ApplicationFunctionSet::ApplicationFunctionSet_Sweep(Memory &mem, uint16_t 
         case 0:
           outAngle = 20;
           AppServo.DeviceDriverSet_Servo_control(outAngle);
-          mem.left = outDistance;
+          mem.right = outDistance;
           mem.angle = 20;
           break;
         case 1: 
@@ -696,7 +696,7 @@ void ApplicationFunctionSet::ApplicationFunctionSet_Sweep(Memory &mem, uint16_t 
         case 2: 
         outAngle = 150; 
           AppServo.DeviceDriverSet_Servo_control(outAngle);
-          mem.right = outDistance;
+          mem.left = outDistance;
           mem.angle = 150;
           break;
     }
@@ -751,7 +751,7 @@ void ApplicationFunctionSet::ApplicationFunctionSet_Obstacle(Memory &mem)
 
     // Steering logic based on sweep angle
     if (distance < steerDist) {
-        if (angle < 80) {
+        if (angle < 80) { //this logic is wrong... so why does it work better this way?????
             // obstacle on left side → steer right
             ApplicationFunctionSet_SmartRobotCarMotionControl(Right, 100);
         } else {
