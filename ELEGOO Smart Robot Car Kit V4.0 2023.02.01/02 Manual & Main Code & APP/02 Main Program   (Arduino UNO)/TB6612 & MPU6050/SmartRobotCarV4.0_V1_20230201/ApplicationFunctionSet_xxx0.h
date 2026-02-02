@@ -12,15 +12,18 @@
 #include <Arduino.h>
 
 struct Memory {
-    uint16_t left;
-    uint16_t center;
-    uint16_t right;
+    uint16_t left;      //distance to obstacle on left
+    uint16_t center;    //distance to obstacle ahead
+    uint16_t right;     //distance to obstacle on right
+
+    uint8_t angle;      //angle of the servo holding the ultrasonic thing
 };
 
 class ApplicationFunctionSet
 {
 public:
   void ApplicationFunctionSet_Init(Memory &mem);
+  void initStruct(Memory &mem);
   void ApplicationFunctionSet_Bootup(void);
   void ApplicationFunctionSet_RGB(void);
   void ApplicationFunctionSet_Expression(void);
@@ -28,7 +31,7 @@ public:
   void ApplicationFunctionSet_Tracking(void);           //Line Tracking Mode
   void ApplicationFunctionSet_Sweep(Memory &mem, uint16_t&, uint8_t&);              //Continuous Ultrasonic Sweeping
   void ApplicationFunctionSet_Obstacle(Memory &mem);           //Obstacle Avoidance
-  void ApplicationFunctionSet_Follow(void);             //Following Mode
+  void ApplicationFunctionSet_Follow(Memory &mem);             //Following Mode
   void ApplicationFunctionSet_Servo(uint8_t Set_Servo); //Servo Control
   void ApplicationFunctionSet_Standby(void);            //Standby Mode
   void ApplicationFunctionSet_KeyCommand(void);         //Mode Switch Button
