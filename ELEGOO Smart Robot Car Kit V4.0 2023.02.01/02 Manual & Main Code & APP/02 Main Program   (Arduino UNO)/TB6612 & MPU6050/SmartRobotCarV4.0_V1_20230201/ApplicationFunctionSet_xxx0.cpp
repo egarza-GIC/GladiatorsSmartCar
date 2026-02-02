@@ -142,7 +142,7 @@ void ApplicationFunctionSet::initStruct(Memory &mem)
   delay(200);
   AppULTRASONIC.DeviceDriverSet_ULTRASONIC_Get(&mem.center);
 
-  mem.angle = 90;
+  mem.angle = 80;
 
   Serial.println("Inital Distances");
   Serial.println(String("left: ") + mem.left + "  center: " + mem.center + "  right: " + mem.right);
