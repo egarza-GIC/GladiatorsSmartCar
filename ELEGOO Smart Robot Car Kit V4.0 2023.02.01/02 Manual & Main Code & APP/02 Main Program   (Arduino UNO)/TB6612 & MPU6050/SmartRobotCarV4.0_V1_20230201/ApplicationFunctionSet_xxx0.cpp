@@ -130,11 +130,11 @@ void ApplicationFunctionSet::ApplicationFunctionSet_Init(Memory &mem)
 
 void ApplicationFunctionSet::initStruct(Memory &mem)
 {
-  AppServo.DeviceDriverSet_Servo_control(0);
+  AppServo.DeviceDriverSet_Servo_control(20);
   delay(200);
   AppULTRASONIC.DeviceDriverSet_ULTRASONIC_Get(&mem.right);
 
-  AppServo.DeviceDriverSet_Servo_control(160);
+  AppServo.DeviceDriverSet_Servo_control(150);
   delay(200);
   AppULTRASONIC.DeviceDriverSet_ULTRASONIC_Get(&mem.left);
 
@@ -682,10 +682,10 @@ void ApplicationFunctionSet::ApplicationFunctionSet_Sweep(Memory &mem, uint16_t 
     // Convert state to angle
     switch (state) {
         case 0:
-          outAngle = 0;
+          outAngle = 20;
           AppServo.DeviceDriverSet_Servo_control(outAngle);
           mem.left = outDistance;
-          mem.angle = 0;
+          mem.angle = 20;
           break;
         case 1: 
           outAngle = 80;  
@@ -694,10 +694,10 @@ void ApplicationFunctionSet::ApplicationFunctionSet_Sweep(Memory &mem, uint16_t 
           mem.angle = 80;
           break;
         case 2: 
-        outAngle = 160; 
+        outAngle = 150; 
           AppServo.DeviceDriverSet_Servo_control(outAngle);
           mem.right = outDistance;
-          mem.angle = 160;
+          mem.angle = 150;
           break;
     }
 
@@ -827,9 +827,9 @@ void ApplicationFunctionSet::ApplicationFunctionSet_Follow(Memory &mem)
 
       if (Position_Servo == 1)
       {
-        AppServo.DeviceDriverSet_Servo_control(0);   // look right
+        AppServo.DeviceDriverSet_Servo_control(20);   // look right
         Position_Servo = 2;
-        mem.angle = 0;
+        mem.angle = 20;
       }
       else if (Position_Servo == 2)
       {
@@ -839,9 +839,9 @@ void ApplicationFunctionSet::ApplicationFunctionSet_Follow(Memory &mem)
       }
       else if (Position_Servo == 3)
       {
-        AppServo.DeviceDriverSet_Servo_control(160);  // look left
+        AppServo.DeviceDriverSet_Servo_control(150);  // look left
         Position_Servo = 4;
-        mem.angle = 160;
+        mem.angle = 150;
       }
       else if (Position_Servo == 4)
       {
