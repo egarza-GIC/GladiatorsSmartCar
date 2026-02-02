@@ -134,7 +134,7 @@ void ApplicationFunctionSet::initStruct(Memory &mem)
   delay(200);
   AppULTRASONIC.DeviceDriverSet_ULTRASONIC_Get(&mem.right);
 
-  AppServo.DeviceDriverSet_Servo_control(150);
+  AppServo.DeviceDriverSet_Servo_control(160);
   delay(200);
   AppULTRASONIC.DeviceDriverSet_ULTRASONIC_Get(&mem.left);
 
@@ -694,10 +694,10 @@ void ApplicationFunctionSet::ApplicationFunctionSet_Sweep(Memory &mem, uint16_t 
           mem.angle = 80;
           break;
         case 2: 
-        outAngle = 150; 
+        outAngle = 160; 
           AppServo.DeviceDriverSet_Servo_control(outAngle);
           mem.right = outDistance;
-          mem.angle = 150;
+          mem.angle = 160;
           break;
     }
 
@@ -711,7 +711,7 @@ void ApplicationFunctionSet::ApplicationFunctionSet_Sweep(Memory &mem, uint16_t 
     state += direction;
 
     // Reverse direction at ends
-    if (state >= 2) direction = -1;   // hit 150°, go back toward 90°
+    if (state >= 2) direction = -1;   // hit 160°, go back toward 90°
     if (state <= 0) direction = 1;    // hit 30°, go forward toward 90°
 }
 
@@ -736,14 +736,14 @@ void ApplicationFunctionSet::ApplicationFunctionSet_Obstacle(Memory &mem)
     // Get continuous sweep data
     ApplicationFunctionSet_Sweep(mem, distance, angle);
 
-    const uint16_t dangerDist = 25;   // stop immediately
+    const uint16_t dangerDist = 20;   // stop immediately
     const uint16_t steerDist  = 40;   // start steering
 
     // Emergency stop + reverse
     if (distance < dangerDist) {
         ApplicationFunctionSet_SmartRobotCarMotionControl(stop_it, 0);
         ApplicationFunctionSet_SmartRobotCarMotionControl(Backward, 100);
-        delay_xxx(300);
+        delay_xxx(200);
         ApplicationFunctionSet_SmartRobotCarMotionControl(Right, 100);
         delay_xxx(200);
         return;
@@ -789,7 +789,7 @@ void ApplicationFunctionSet::ApplicationFunctionSet_Follow(Memory &mem)
   // Always read distance straight ahead (servo assumed near center most of the time)
   AppULTRASONIC.DeviceDriverSet_ULTRASONIC_Get(&ULTRASONIC_Get);
 
-  int turnTime = abs(mem.angle - 80) * 2;  // 30° → 120ms, 150° → 120ms
+  int turnTime = abs(mem.angle - 80) * 2;  //milliseconds
 
   // If something is closer than 20 cm → FOLLOW / REACT
   if (function_xxx(ULTRASONIC_Get, 0, 20))   // distance <= 20
@@ -839,9 +839,9 @@ void ApplicationFunctionSet::ApplicationFunctionSet_Follow(Memory &mem)
       }
       else if (Position_Servo == 3)
       {
-        AppServo.DeviceDriverSet_Servo_control(150);  // look left
+        AppServo.DeviceDriverSet_Servo_control(160);  // look left
         Position_Servo = 4;
-        mem.angle = 150;
+        mem.angle = 160;
       }
       else if (Position_Servo == 4)
       {
