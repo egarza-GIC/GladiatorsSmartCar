@@ -218,7 +218,7 @@ static void ApplicationFunctionSet_SmartRobotCarMotionControl(SmartRobotCarMotio
     break;
   case ObstacleAvoidance_mode:
     Kp = 2;
-    UpperLimit = 180;
+    UpperLimit = 255;
     break;
   case Follow_mode:
     Kp = 2;
@@ -640,79 +640,168 @@ void ApplicationFunctionSet::ApplicationFunctionSet_Tracking(void)
   Obstacle Avoidance Mode
 */
 void ApplicationFunctionSet::ApplicationFunctionSet_Obstacle(void)
+
 {
+
   static boolean first_is = true;
+
+  static uint16_t ULTRASONIC_Get = 0;
+
+  static unsigned long ULTRASONIC_time = 0;
+
+  static uint8_t Position_Servo = 1;
+
+  static uint8_t timestamp = 3;
+
+  static uint8_t OneCycle = 1;
+
   if (Application_SmartRobotCarxxx0.Functional_Mode == ObstacleAvoidance_mode)
+
   {
-    uint8_t switc_ctrl = 0;
-    uint16_t get_Distance;
+
+      static uint16_t max_distance = 50; // how far away we want to detect
+
+      static uint16_t min_distance = 0;
+
+      static uint16_t white_value_max = 250;// test in place. black is around 500
+
+      static uint16_t white_value_min = 0;
+
+      static uint16_t speed_fast = 255; // 255 max
+
+      static uint16_t speed_medium = 255; // 255 max
+
+      static uint16_t speed_slow = 50;
+
+      static uint16_t spin_time = 250; //ms
+
+      static uint16_t backup_time = 500; //ms
+
+      static uint16_t search_no_find_time = 500; // # cycles of not finding before spinning
+
+      uint16_t get_Distance;
+
     if (Car_LeaveTheGround == false)
+
     {
+
+      Serial.println("Off the ground");
+
       ApplicationFunctionSet_SmartRobotCarMotionControl(stop_it, 0);
+
       return;
+
     }
+
     if (first_is == true) //Enter the mode for the first time, and modulate the steering gear to 90 degrees
+
     {
-      AppServo.DeviceDriverSet_Servo_control(90 /*Position_angle*/);
+
+      Serial.println("Sumo mode");
+
+      delay_xxx(5);
+
+      AppServo.DeviceDriverSet_Servo_control(20);//Look left
+
+      AppServo.DeviceDriverSet_Servo_control(150);//look right
+
+      AppServo.DeviceDriverSet_Servo_control(80);//look center-ish
+
+      delay_xxx(5);
+
       first_is = false;
+
     }
 
-    AppULTRASONIC.DeviceDriverSet_ULTRASONIC_Get(&get_Distance /*out*/);
-    if (function_xxx(get_Distance, 0, 20))
-    {
-      ApplicationFunctionSet_SmartRobotCarMotionControl(stop_it, 0);
+    // hit the white line
 
-      for (uint8_t i = 1; i < 6; i += 2) //1、3、5 Omnidirectional detection of obstacle avoidance status
+    // removed TrackingData_L and _R the pin values are way off
+
+    if(function_xxx(TrackingData_M, white_value_min, white_value_max))
+
+    {
+
+      Serial.print("L=");
+
+      Serial.print(TrackingData_L);
+
+      Serial.print("  M=");
+
+      Serial.print(TrackingData_M);
+
+      Serial.print("  R=");
+
+      Serial.println(TrackingData_R);
+
+      // See any line
+
+      ApplicationFunctionSet_SmartRobotCarMotionControl(Backward, speed_fast);
+
+      delay(backup_time);
+
+      ApplicationFunctionSet_SmartRobotCarMotionControl(Right, speed_fast);
+
+      delay(spin_time);
+
+      ApplicationFunctionSet_SmartRobotCarMotionControl(Forward, speed_fast);
+
+    }
+
+    // Find and Follow
+
+    else
+
+    {
+
+       //distance check
+
+      AppULTRASONIC.DeviceDriverSet_ULTRASONIC_Get(&ULTRASONIC_Get);
+
+      //There is no object
+
+      if (false == function_xxx(ULTRASONIC_Get, min_distance, max_distance)) 
+
       {
-        AppServo.DeviceDriverSet_Servo_control(30 * i /*Position_angle*/);
-        delay_xxx(1);
-        AppULTRASONIC.DeviceDriverSet_ULTRASONIC_Get(&get_Distance /*out*/);
 
-        if (function_xxx(get_Distance, 0, 20))
-        {
-          ApplicationFunctionSet_SmartRobotCarMotionControl(stop_it, 0);
-          if (5 == i)
-          {
-            ApplicationFunctionSet_SmartRobotCarMotionControl(Backward, 150);
-            delay_xxx(500);
-            ApplicationFunctionSet_SmartRobotCarMotionControl(Right, 150);
-            delay_xxx(50);
-            first_is = true;
-            break;
-          }
-        }
-        else
-        {
-          switc_ctrl = 0;
-          switch (i)
-          {
-          case 1:
-            ApplicationFunctionSet_SmartRobotCarMotionControl(Right, 150);
-            break;
-          case 3:
-            ApplicationFunctionSet_SmartRobotCarMotionControl(Forward, 150);
-            break;
-          case 5:
-            ApplicationFunctionSet_SmartRobotCarMotionControl(Left, 150);
-            break;
-          }
-          delay_xxx(50);
-          first_is = true;
-          break;
-        }
+        //spin right just a bit
+
+        ApplicationFunctionSet_SmartRobotCarMotionControl(Right, speed_fast);
+
+        delay(50);
+
+        ApplicationFunctionSet_SmartRobotCarMotionControl(Forward, speed_fast);
+
+      }// end there is no object
+
+      else // There is an object
+
+      {
+
+        // chase it
+
+        ApplicationFunctionSet_SmartRobotCarMotionControl(Forward, speed_fast);
+
       }
-    }
-    else //if (function_xxx(get_Distance, 20, 50))
-    {
-      ApplicationFunctionSet_SmartRobotCarMotionControl(Forward, 150);
-    }
-  }
-  else
-  {
-    first_is = true;
-  }
-}
 
+    }//end find follow
+
+  }// not sumo mode
+
+  else
+
+  {
+
+    first_is = true;
+
+    ULTRASONIC_Get = 0;
+
+    ULTRASONIC_time = 0;
+
+  }//if obstacle mode
+
+}// end of Set_Obstacle Sumo mode
+
+ 
 /*
   Following mode：
 */
