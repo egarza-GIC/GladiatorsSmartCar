@@ -251,10 +251,6 @@ void ApplicationFunctionSet::ApplicationFunctionSet_RGB(void)
 void ApplicationFunctionSet::ApplicationFunctionSet_Tracking(void)
 {
   static bool first_is = true;
-  static bool timestamp = true;
-  static bool BlindDetection = true;
-  static bool isDancing = false;
-  static unsigned long MotorRL_time = 0;
 
   if (Application_SmartRobotCarxxx0.Functional_Mode == TraceBased_mode)
   {
@@ -269,83 +265,27 @@ void ApplicationFunctionSet::ApplicationFunctionSet_Tracking(void)
       return;
     }
 
-    if (!isDancing && function_xxx(TrackingData_M, TrackingDetection_S, TrackingDetection_E))
+    if (function_xxx(TrackingData_M, TrackingDetection_S, TrackingDetection_E))
     {
       ApplicationFunctionSet_SmartRobotCarMotionControl(Forward, TRACK_SPEED_FORWARD);
-      timestamp = true;
-      BlindDetection = true;
     }
-    else if (!isDancing && function_xxx(TrackingData_R, TrackingDetection_S, TrackingDetection_E))
+    else if (function_xxx(TrackingData_R, TrackingDetection_S, TrackingDetection_E))
     {
       ApplicationFunctionSet_SmartRobotCarMotionControl(Right, TRACK_SPEED_TURN);
-      timestamp = true;
-      BlindDetection = true;
     }
-    else if (!isDancing && function_xxx(TrackingData_L, TrackingDetection_S, TrackingDetection_E))
+    else if (function_xxx(TrackingData_L, TrackingDetection_S, TrackingDetection_E))
     {
       ApplicationFunctionSet_SmartRobotCarMotionControl(Left, TRACK_SPEED_TURN);
-      timestamp = true;
-      BlindDetection = true;
     }
     else
     {
-      /*Line lost — phase 1: recover; phase 2: dance*/
-      if (timestamp == true)
-      {
-        timestamp = false;
-        MotorRL_time = millis();
-      }
-
-      unsigned long t = millis() - MotorRL_time;
-
-      if (t < TRACK_RECOVERY_MS)
-      {
-        /*Recovery window: creep forward to reacquire the line*/
-        ApplicationFunctionSet_SmartRobotCarMotionControl(Forward, TRACK_RECOVERY_SPEED);
-      }
-      else if (BlindDetection == true)
-      {
-        /*Line not found after recovery — run dance sequence*/
-        isDancing = true;
-        const unsigned long td = t - TRACK_RECOVERY_MS;
-        const unsigned long T1 = DANCE_PAUSE_MS;
-        const unsigned long T2 = T1 + DANCE_SPIN1_MS;
-        const unsigned long T3 = T2 + DANCE_SPIN2_MS;
-        const unsigned long T4 = T3 + DANCE_SPIN3_MS;
-        if (function_xxx(td, 0, T1))
-        {
-          ApplicationFunctionSet_SmartRobotCarMotionControl(stop_it, 0);              // pause
-        }
-        else if (function_xxx(td, T1, T2))
-        {
-          ApplicationFunctionSet_SmartRobotCarMotionControl(Right, DANCE_SPIN_SPEED); // spin right
-        }
-        else if (function_xxx(td, T2, T3))
-        {
-          ApplicationFunctionSet_SmartRobotCarMotionControl(Left, DANCE_SPIN_SPEED);  // spin left (double)
-        }
-        else if (function_xxx(td, T3, T4))
-        {
-          ApplicationFunctionSet_SmartRobotCarMotionControl(Right, DANCE_SPIN_SPEED); // spin right
-        }
-        else
-        {
-          BlindDetection = false;
-          ApplicationFunctionSet_SmartRobotCarMotionControl(stop_it, 0);              // done — stays stopped until mode is toggled
-        }
-      }
+      /*Line lost — stop*/
+      ApplicationFunctionSet_SmartRobotCarMotionControl(stop_it, 0);
     }
   }
   else
   {
     first_is = true;
-    isDancing = false;
-    if (false == timestamp)
-    {
-      BlindDetection = true;
-      timestamp = true;
-      MotorRL_time = 0;
-    }
   }
 }
 
