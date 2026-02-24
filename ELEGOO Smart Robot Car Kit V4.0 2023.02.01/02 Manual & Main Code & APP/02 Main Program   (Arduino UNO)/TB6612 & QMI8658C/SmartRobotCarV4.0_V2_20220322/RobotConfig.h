@@ -24,7 +24,7 @@
 // White boundary tape = HIGH reading (same range as the tracked line, ~250–930).
 // Threshold sits above the floor range but below peak tape values.
 // Tune higher (e.g. 750) if floor triggers it; lower (e.g. 500) if tape is missed.
-#define SUMO_BOUNDARY_THRESHOLD 650   // sensors > this = on white boundary tape
+#define SUMO_BOUNDARY_THRESHOLD 400   // sensors > this = on white boundary tape
 
 // --- Sumo: motor speeds (0–255) ---
 #define SUMO_SEARCH_SPEED        80   // creep speed while scanning
