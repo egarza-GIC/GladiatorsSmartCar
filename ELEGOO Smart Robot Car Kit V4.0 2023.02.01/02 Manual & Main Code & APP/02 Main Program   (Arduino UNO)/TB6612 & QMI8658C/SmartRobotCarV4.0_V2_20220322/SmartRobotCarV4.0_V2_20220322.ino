@@ -15,5 +15,6 @@ void loop()
   Application_FunctionSet.ApplicationFunctionSet_RGB();
   Application_FunctionSet.ApplicationFunctionSet_Tracking();
   Application_FunctionSet.ApplicationFunctionSet_Sumo();
+  Application_FunctionSet.ApplicationFunctionSet_Calibrate();
   Application_FunctionSet.ApplicationFunctionSet_Standby();
 }

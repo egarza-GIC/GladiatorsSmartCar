@@ -18,13 +18,13 @@
 #define TRACKING_THRESHOLD_AIR  970   // all sensors above this = robot lifted
 
 
-// --- Sumo: IR boundary detection ---
-// Sensors ABOVE this value = white boundary tape detected.
-// Dark floor = LOW reading (below ~250, same as line-follow logic).
-// White boundary tape = HIGH reading (same range as the tracked line, ~250–930).
-// Threshold sits above the floor range but below peak tape values.
-// Tune higher (e.g. 750) if floor triggers it; lower (e.g. 500) if tape is missed.
-#define SUMO_BOUNDARY_THRESHOLD 400   // sensors > this = on white boundary tape
+// --- Sumo: IR boundary detection (per-sensor) ---
+// Calibrated readings on outer black boundary tape: L=813, M=750, R=715 (±10 each).
+// Threshold = calibrated reading - 10 (catches low end of tape range).
+// Floor reads significantly lower and will not trigger these thresholds.
+#define SUMO_BOUNDARY_L  803   // L sensor triggers at >= 803
+#define SUMO_BOUNDARY_M  740   // M sensor triggers at >= 740
+#define SUMO_BOUNDARY_R  705   // R sensor triggers at >= 705
 
 // --- Sumo: motor speeds (0–255) ---
 #define SUMO_SEARCH_SPEED        80   // creep speed while scanning

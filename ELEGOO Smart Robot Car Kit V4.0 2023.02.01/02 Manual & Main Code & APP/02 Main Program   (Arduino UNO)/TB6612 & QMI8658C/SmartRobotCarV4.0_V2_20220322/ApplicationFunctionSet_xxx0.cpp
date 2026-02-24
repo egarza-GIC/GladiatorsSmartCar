@@ -44,12 +44,13 @@ enum SmartRobotCarMotionControl
   stop_it
 };
 
-/*Mode enum — 3 modes only*/
+/*Mode enum*/
 enum SmartRobotCarFunctionalModel
 {
   Standby_mode,
   TraceBased_mode,
-  Sumo_mode
+  Sumo_mode,
+  Calibrate_mode
 };
 
 struct Application_xxx
@@ -241,6 +242,9 @@ void ApplicationFunctionSet::ApplicationFunctionSet_RGB(void)
     case Sumo_mode:
       AppRBG_LED.DeviceDriverSet_RBGLED_xxx(0, 2, CRGB::Red);
       break;
+    case Calibrate_mode:
+      AppRBG_LED.DeviceDriverSet_RBGLED_xxx(0, 2, CRGB::Blue);
+      break;
     default:
       break;
     }
@@ -323,12 +327,13 @@ void ApplicationFunctionSet::ApplicationFunctionSet_Sumo(void)
   uint16_t distance = 0;
 
   /*
-    Boundary check: white arena border reflects IR strongly → low analog value.
-    Check any sensor below threshold (skip during delay countdown).
+    Boundary check: each sensor has its own calibrated threshold.
+    Calibrated tape readings: L=813, M=750, R=715 (±10).
+    Threshold = reading - 10 to catch the low end of the tape range.
   */
-  bool boundaryLeft  = (TrackingData_L > SUMO_BOUNDARY_THRESHOLD);
-  bool boundaryMiddle = (TrackingData_M > SUMO_BOUNDARY_THRESHOLD);
-  bool boundaryRight = (TrackingData_R > SUMO_BOUNDARY_THRESHOLD);
+  bool boundaryLeft   = (TrackingData_L >= SUMO_BOUNDARY_L);
+  bool boundaryMiddle = (TrackingData_M >= SUMO_BOUNDARY_M);
+  bool boundaryRight  = (TrackingData_R >= SUMO_BOUNDARY_R);
   bool onBoundary = boundaryLeft || boundaryMiddle || boundaryRight;
 
   if (state != SUMO_DELAY && state != SUMO_AVOID_BOUNDARY && onBoundary)
@@ -454,7 +459,45 @@ void ApplicationFunctionSet::ApplicationFunctionSet_Standby(void)
   }
 }
 
-/*Button cycles: Standby → Line Follow → Sumo → Standby ...*/
+/*Calibration mode — motors off, print raw IR sensor values every 250ms*/
+void ApplicationFunctionSet::ApplicationFunctionSet_Calibrate(void)
+{
+  if (Application_SmartRobotCarxxx0.Functional_Mode != Calibrate_mode)
+    return;
+
+  /*Kill motors*/
+  AppMotor.DeviceDriverSet_Motor_control(direction_void, 0, direction_void, 0, control_enable);
+
+  static unsigned long lastPrint = 0;
+  if (millis() - lastPrint < 250)
+    return;
+  lastPrint = millis();
+
+  int L = TrackingData_L;
+  int M = TrackingData_M;
+  int R = TrackingData_R;
+
+  Serial.print("L="); Serial.print(L);
+  Serial.print("  M="); Serial.print(M);
+  Serial.print("  R="); Serial.print(R);
+
+  Serial.print("    |  TRACK("); Serial.print(TRACKING_THRESHOLD_LOW);
+  Serial.print("-"); Serial.print(TRACKING_THRESHOLD_HIGH); Serial.print("): ");
+  Serial.print("L="); Serial.print(function_xxx(L, TRACKING_THRESHOLD_LOW, TRACKING_THRESHOLD_HIGH) ? "IN " : "OUT");
+  Serial.print(" M="); Serial.print(function_xxx(M, TRACKING_THRESHOLD_LOW, TRACKING_THRESHOLD_HIGH) ? "IN " : "OUT");
+  Serial.print(" R="); Serial.print(function_xxx(R, TRACKING_THRESHOLD_LOW, TRACKING_THRESHOLD_HIGH) ? "IN " : "OUT");
+
+  Serial.print("  |  SUMO_BOUNDARY(L>="); Serial.print(SUMO_BOUNDARY_L);
+  Serial.print(" M>="); Serial.print(SUMO_BOUNDARY_M);
+  Serial.print(" R>="); Serial.print(SUMO_BOUNDARY_R); Serial.print("): ");
+  Serial.print("L="); Serial.print(L >= SUMO_BOUNDARY_L ? "YES" : "NO ");
+  Serial.print(" M="); Serial.print(M >= SUMO_BOUNDARY_M ? "YES" : "NO ");
+  Serial.print(" R="); Serial.print(R >= SUMO_BOUNDARY_R ? "YES" : "NO ");
+
+  Serial.println();
+}
+
+/*Button cycles: Standby → Line Follow → Sumo → Calibrate → Standby ...*/
 void ApplicationFunctionSet::ApplicationFunctionSet_KeyCommand(void)
 {
   uint8_t get_keyValue;
@@ -476,7 +519,7 @@ void ApplicationFunctionSet::ApplicationFunctionSet_KeyCommand(void)
       Application_SmartRobotCarxxx0.Functional_Mode = Standby_mode;
       break;
     case 4:
-      Application_SmartRobotCarxxx0.Functional_Mode = Standby_mode;
+      Application_SmartRobotCarxxx0.Functional_Mode = Calibrate_mode;
       break;
     default:
       break;

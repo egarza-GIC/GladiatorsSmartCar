@@ -9,8 +9,9 @@ class ApplicationFunctionSet
 public:
   void ApplicationFunctionSet_Init(void);
   void ApplicationFunctionSet_RGB(void);
-  void ApplicationFunctionSet_Tracking(void);  // Line follow mode
-  void ApplicationFunctionSet_Sumo(void);      // Sumo mode
+  void ApplicationFunctionSet_Tracking(void);   // Line follow mode
+  void ApplicationFunctionSet_Sumo(void);       // Sumo mode
+  void ApplicationFunctionSet_Calibrate(void);  // Sensor calibration mode
   void ApplicationFunctionSet_Standby(void);
   void ApplicationFunctionSet_KeyCommand(void);
   void ApplicationFunctionSet_SensorDataUpdate(void);
