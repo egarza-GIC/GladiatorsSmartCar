@@ -253,6 +253,7 @@ void ApplicationFunctionSet::ApplicationFunctionSet_Tracking(void)
   static bool first_is = true;
   static bool timestamp = true;
   static bool BlindDetection = true;
+  static bool isDancing = false;
   static unsigned long MotorRL_time = 0;
 
   if (Application_SmartRobotCarxxx0.Functional_Mode == TraceBased_mode)
@@ -268,19 +269,19 @@ void ApplicationFunctionSet::ApplicationFunctionSet_Tracking(void)
       return;
     }
 
-    if (function_xxx(TrackingData_M, TrackingDetection_S, TrackingDetection_E))
+    if (!isDancing && function_xxx(TrackingData_M, TrackingDetection_S, TrackingDetection_E))
     {
       ApplicationFunctionSet_SmartRobotCarMotionControl(Forward, TRACK_SPEED_FORWARD);
       timestamp = true;
       BlindDetection = true;
     }
-    else if (function_xxx(TrackingData_R, TrackingDetection_S, TrackingDetection_E))
+    else if (!isDancing && function_xxx(TrackingData_R, TrackingDetection_S, TrackingDetection_E))
     {
       ApplicationFunctionSet_SmartRobotCarMotionControl(Right, TRACK_SPEED_TURN);
       timestamp = true;
       BlindDetection = true;
     }
-    else if (function_xxx(TrackingData_L, TrackingDetection_S, TrackingDetection_E))
+    else if (!isDancing && function_xxx(TrackingData_L, TrackingDetection_S, TrackingDetection_E))
     {
       ApplicationFunctionSet_SmartRobotCarMotionControl(Left, TRACK_SPEED_TURN);
       timestamp = true;
@@ -305,6 +306,7 @@ void ApplicationFunctionSet::ApplicationFunctionSet_Tracking(void)
       else if (BlindDetection == true)
       {
         /*Line not found after recovery — run dance sequence*/
+        isDancing = true;
         const unsigned long td = t - TRACK_RECOVERY_MS;
         const unsigned long T1 = DANCE_PAUSE_MS;
         const unsigned long T2 = T1 + DANCE_SPIN1_MS;
@@ -329,7 +331,7 @@ void ApplicationFunctionSet::ApplicationFunctionSet_Tracking(void)
         else
         {
           BlindDetection = false;
-          ApplicationFunctionSet_SmartRobotCarMotionControl(stop_it, 0);              // done
+          ApplicationFunctionSet_SmartRobotCarMotionControl(stop_it, 0);              // done — stays stopped until mode is toggled
         }
       }
     }
@@ -337,6 +339,7 @@ void ApplicationFunctionSet::ApplicationFunctionSet_Tracking(void)
   else
   {
     first_is = true;
+    isDancing = false;
     if (false == timestamp)
     {
       BlindDetection = true;
