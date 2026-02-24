@@ -270,43 +270,60 @@ void ApplicationFunctionSet::ApplicationFunctionSet_Tracking(void)
 
     if (function_xxx(TrackingData_M, TrackingDetection_S, TrackingDetection_E))
     {
-      ApplicationFunctionSet_SmartRobotCarMotionControl(Forward, 100);
+      ApplicationFunctionSet_SmartRobotCarMotionControl(Forward, TRACK_SPEED_FORWARD);
       timestamp = true;
       BlindDetection = true;
     }
     else if (function_xxx(TrackingData_R, TrackingDetection_S, TrackingDetection_E))
     {
-      ApplicationFunctionSet_SmartRobotCarMotionControl(Right, 100);
+      ApplicationFunctionSet_SmartRobotCarMotionControl(Right, TRACK_SPEED_TURN);
       timestamp = true;
       BlindDetection = true;
     }
     else if (function_xxx(TrackingData_L, TrackingDetection_S, TrackingDetection_E))
     {
-      ApplicationFunctionSet_SmartRobotCarMotionControl(Left, 100);
+      ApplicationFunctionSet_SmartRobotCarMotionControl(Left, TRACK_SPEED_TURN);
       timestamp = true;
       BlindDetection = true;
     }
     else
     {
-      /*Line lost — start blind detection search*/
+      /*Line ended — stop and dance*/
       if (timestamp == true)
       {
         timestamp = false;
         MotorRL_time = millis();
         ApplicationFunctionSet_SmartRobotCarMotionControl(stop_it, 0);
       }
-      if ((function_xxx((millis() - MotorRL_time), 0, 200) || function_xxx((millis() - MotorRL_time), 1600, 2000)) && BlindDetection == true)
+      if (BlindDetection == true)
       {
-        ApplicationFunctionSet_SmartRobotCarMotionControl(Right, 100);
-      }
-      else if ((function_xxx((millis() - MotorRL_time), 200, 1600)) && BlindDetection == true)
-      {
-        ApplicationFunctionSet_SmartRobotCarMotionControl(Left, 100);
-      }
-      else if (function_xxx((millis() - MotorRL_time), 3000, 3500))
-      {
-        BlindDetection = false;
-        ApplicationFunctionSet_SmartRobotCarMotionControl(stop_it, 0);
+        unsigned long t = millis() - MotorRL_time;
+        // Dance timing boundaries (cumulative ms)
+        const unsigned long T1 = DANCE_PAUSE_MS;
+        const unsigned long T2 = T1 + DANCE_SPIN1_MS;
+        const unsigned long T3 = T2 + DANCE_SPIN2_MS;
+        const unsigned long T4 = T3 + DANCE_SPIN3_MS;
+        if (function_xxx(t, 0, T1))
+        {
+          ApplicationFunctionSet_SmartRobotCarMotionControl(stop_it, 0);             // pause
+        }
+        else if (function_xxx(t, T1, T2))
+        {
+          ApplicationFunctionSet_SmartRobotCarMotionControl(Right, DANCE_SPIN_SPEED); // spin right
+        }
+        else if (function_xxx(t, T2, T3))
+        {
+          ApplicationFunctionSet_SmartRobotCarMotionControl(Left, DANCE_SPIN_SPEED);  // spin left (double)
+        }
+        else if (function_xxx(t, T3, T4))
+        {
+          ApplicationFunctionSet_SmartRobotCarMotionControl(Right, DANCE_SPIN_SPEED); // spin right
+        }
+        else
+        {
+          BlindDetection = false;
+          ApplicationFunctionSet_SmartRobotCarMotionControl(stop_it, 0);             // done
+        }
       }
     }
   }
@@ -322,20 +339,7 @@ void ApplicationFunctionSet::ApplicationFunctionSet_Tracking(void)
   }
 }
 
-/*
-  Arena surface layout (inside → outside):
-    [black shiny floor]  [white masking tape boundary]  [black electrical tape outer edge]
-
-  IR sensor readings (lower value = more reflection = brighter surface):
-    Black shiny floor:    ~200–500  (interior of ring — robot should stay here)
-    White masking tape:   ~50–180   (boundary — robot must reverse when it sees this)
-    Black electrical tape: ~700–950 (outer edge — robot should never reach this)
-
-  SUMO_BOUNDARY_THRESHOLD: sensors below this value = white masking tape detected = at boundary.
-  Set well below the shiny floor (~200) to avoid false triggers on the floor.
-  Tune lower (e.g. 100) if you get false positives; tune higher (e.g. 180) if it misses the boundary.
-*/
-#define SUMO_BOUNDARY_THRESHOLD 150
+// Sumo boundary threshold is defined in RobotConfig.h (SUMO_BOUNDARY_THRESHOLD)
 
 /*Sumo mode — search, charge, and avoid boundary*/
 void ApplicationFunctionSet::ApplicationFunctionSet_Sumo(void)
@@ -390,7 +394,7 @@ void ApplicationFunctionSet::ApplicationFunctionSet_Sumo(void)
   case SUMO_DELAY:
     /*Motors off — wait 3 seconds before activating*/
     AppMotor.DeviceDriverSet_Motor_control(direction_void, 0, direction_void, 0, control_enable);
-    if (millis() - timer >= 3000)
+    if (millis() - timer >= SUMO_DELAY_MS)
     {
       state = SUMO_SEARCH;
       servoAngle = 90;
@@ -400,17 +404,17 @@ void ApplicationFunctionSet::ApplicationFunctionSet_Sumo(void)
 
   case SUMO_SEARCH:
     /*Creep forward slowly while sweeping servo to scan for opponent*/
-    AppMotor.DeviceDriverSet_Motor_control(direction_just, 80, direction_just, 80, control_enable);
-    if (millis() - servoTimer > 80)
+    AppMotor.DeviceDriverSet_Motor_control(direction_just, SUMO_SEARCH_SPEED, direction_just, SUMO_SEARCH_SPEED, control_enable);
+    if (millis() - servoTimer > SUMO_SERVO_INTERVAL_MS)
     {
       servoTimer = millis();
-      servoAngle += servoDir * 5;
-      if (servoAngle >= 150) { servoAngle = 150; servoDir = -1; }
-      if (servoAngle <= 30)  { servoAngle = 30;  servoDir = 1;  }
+      servoAngle += servoDir * SUMO_SERVO_STEP;
+      if (servoAngle >= SUMO_SERVO_MAX) { servoAngle = SUMO_SERVO_MAX; servoDir = -1; }
+      if (servoAngle <= SUMO_SERVO_MIN) { servoAngle = SUMO_SERVO_MIN; servoDir = 1;  }
       AppServo.DeviceDriverSet_Servo_control(servoAngle);
     }
     AppULTRASONIC.DeviceDriverSet_ULTRASONIC_Get(&distance);
-    if (distance > 0 && distance <= 60)
+    if (distance > 0 && distance <= SUMO_DETECT_DISTANCE_CM)
     {
       /*Opponent detected — center servo and charge*/
       AppServo.DeviceDriverSet_Servo_control(90);
@@ -421,10 +425,10 @@ void ApplicationFunctionSet::ApplicationFunctionSet_Sumo(void)
 
   case SUMO_CHARGE:
     AppULTRASONIC.DeviceDriverSet_ULTRASONIC_Get(&distance);
-    if (distance > 0 && distance <= 60)
+    if (distance > 0 && distance <= SUMO_DETECT_DISTANCE_CM)
     {
       /*Full speed charge*/
-      AppMotor.DeviceDriverSet_Motor_control(direction_just, 255, direction_just, 255, control_enable);
+      AppMotor.DeviceDriverSet_Motor_control(direction_just, SUMO_CHARGE_SPEED, direction_just, SUMO_CHARGE_SPEED, control_enable);
     }
     else
     {
@@ -442,21 +446,21 @@ void ApplicationFunctionSet::ApplicationFunctionSet_Sumo(void)
         - Otherwise (middle only) → spin right by default
       After 700ms: resume previous state.
     */
-    if (millis() - timer < 350)
+    if (millis() - timer < SUMO_REVERSE_MS)
     {
-      AppMotor.DeviceDriverSet_Motor_control(direction_back, 200, direction_back, 200, control_enable);
+      AppMotor.DeviceDriverSet_Motor_control(direction_back, SUMO_REVERSE_SPEED, direction_back, SUMO_REVERSE_SPEED, control_enable);
     }
-    else if (millis() - timer < 700)
+    else if (millis() - timer < (SUMO_REVERSE_MS + SUMO_SPIN_MS))
     {
       if (boundaryLeft)
       {
         /*Boundary was on left — spin right to face back inward*/
-        AppMotor.DeviceDriverSet_Motor_control(direction_back, 150, direction_just, 150, control_enable);
+        AppMotor.DeviceDriverSet_Motor_control(direction_back, SUMO_SPIN_SPEED, direction_just, SUMO_SPIN_SPEED, control_enable);
       }
       else
       {
         /*Boundary was on right or front — spin left*/
-        AppMotor.DeviceDriverSet_Motor_control(direction_just, 150, direction_back, 150, control_enable);
+        AppMotor.DeviceDriverSet_Motor_control(direction_just, SUMO_SPIN_SPEED, direction_back, SUMO_SPIN_SPEED, control_enable);
       }
     }
     else
