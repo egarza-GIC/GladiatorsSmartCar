@@ -288,41 +288,48 @@ void ApplicationFunctionSet::ApplicationFunctionSet_Tracking(void)
     }
     else
     {
-      /*Line ended — stop and dance*/
+      /*Line lost — phase 1: recover; phase 2: dance*/
       if (timestamp == true)
       {
         timestamp = false;
         MotorRL_time = millis();
-        ApplicationFunctionSet_SmartRobotCarMotionControl(stop_it, 0);
       }
-      if (BlindDetection == true)
+
+      unsigned long t = millis() - MotorRL_time;
+
+      if (t < TRACK_RECOVERY_MS)
       {
-        unsigned long t = millis() - MotorRL_time;
-        // Dance timing boundaries (cumulative ms)
+        /*Recovery window: creep forward to reacquire the line*/
+        ApplicationFunctionSet_SmartRobotCarMotionControl(Forward, TRACK_RECOVERY_SPEED);
+      }
+      else if (BlindDetection == true)
+      {
+        /*Line not found after recovery — run dance sequence*/
+        const unsigned long td = t - TRACK_RECOVERY_MS;
         const unsigned long T1 = DANCE_PAUSE_MS;
         const unsigned long T2 = T1 + DANCE_SPIN1_MS;
         const unsigned long T3 = T2 + DANCE_SPIN2_MS;
         const unsigned long T4 = T3 + DANCE_SPIN3_MS;
-        if (function_xxx(t, 0, T1))
+        if (function_xxx(td, 0, T1))
         {
-          ApplicationFunctionSet_SmartRobotCarMotionControl(stop_it, 0);             // pause
+          ApplicationFunctionSet_SmartRobotCarMotionControl(stop_it, 0);              // pause
         }
-        else if (function_xxx(t, T1, T2))
+        else if (function_xxx(td, T1, T2))
         {
           ApplicationFunctionSet_SmartRobotCarMotionControl(Right, DANCE_SPIN_SPEED); // spin right
         }
-        else if (function_xxx(t, T2, T3))
+        else if (function_xxx(td, T2, T3))
         {
           ApplicationFunctionSet_SmartRobotCarMotionControl(Left, DANCE_SPIN_SPEED);  // spin left (double)
         }
-        else if (function_xxx(t, T3, T4))
+        else if (function_xxx(td, T3, T4))
         {
           ApplicationFunctionSet_SmartRobotCarMotionControl(Right, DANCE_SPIN_SPEED); // spin right
         }
         else
         {
           BlindDetection = false;
-          ApplicationFunctionSet_SmartRobotCarMotionControl(stop_it, 0);             // done
+          ApplicationFunctionSet_SmartRobotCarMotionControl(stop_it, 0);              // done
         }
       }
     }

@@ -17,6 +17,12 @@
 #define TRACKING_THRESHOLD_HIGH 930   // above this = too dark, ignore
 #define TRACKING_THRESHOLD_AIR  970   // all sensors above this = robot lifted
 
+// --- Line Follow: line-lost recovery ---
+// Robot creeps forward for this window trying to reacquire the line.
+// Only if the line is still not found after this does the dance trigger.
+#define TRACK_RECOVERY_MS       300   // ms — how long to search before giving up
+#define TRACK_RECOVERY_SPEED     80   // motor speed during recovery creep
+
 // --- Line Follow: end-of-line dance ---
 // Sequence: pause → spin right → spin left → spin right → stop
 #define DANCE_PAUSE_MS          400   // ms — brief stop before dancing
