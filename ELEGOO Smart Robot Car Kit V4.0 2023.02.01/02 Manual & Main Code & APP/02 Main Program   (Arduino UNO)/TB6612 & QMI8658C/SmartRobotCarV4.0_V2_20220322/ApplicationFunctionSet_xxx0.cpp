@@ -306,6 +306,7 @@ void ApplicationFunctionSet::ApplicationFunctionSet_Sumo(void)
   static int8_t servoDir = 1;
   static unsigned long servoTimer = 0;
   static SumoState stateBeforeBoundary = SUMO_SEARCH;
+  static uint8_t detectCount = 0;
 
   if (Application_SmartRobotCarxxx0.Functional_Mode != Sumo_mode)
   {
@@ -371,10 +372,19 @@ void ApplicationFunctionSet::ApplicationFunctionSet_Sumo(void)
     AppULTRASONIC.DeviceDriverSet_ULTRASONIC_Get(&distance);
     if (distance > 0 && distance <= SUMO_DETECT_DISTANCE_CM)
     {
-      /*Opponent detected — center servo and charge*/
-      AppServo.DeviceDriverSet_Servo_control(90);
-      servoAngle = 90;
-      state = SUMO_CHARGE;
+      detectCount++;
+      if (detectCount >= SUMO_CONFIRM_COUNT)
+      {
+        /*Confirmed opponent — center servo and charge*/
+        detectCount = 0;
+        AppServo.DeviceDriverSet_Servo_control(90);
+        servoAngle = 90;
+        state = SUMO_CHARGE;
+      }
+    }
+    else
+    {
+      detectCount = 0;
     }
     break;
 

@@ -34,6 +34,7 @@
 
 // --- Sumo: distances and timing ---
 #define SUMO_DETECT_DISTANCE_CM  60   // cm — ultrasonic opponent detection range
+#define SUMO_CONFIRM_COUNT        3   // consecutive readings required before charging (filters EMI spikes)
 #define SUMO_DELAY_MS          3000   // ms — motors-off countdown at mode start
 #define SUMO_REVERSE_MS         350   // ms — reverse phase of boundary avoidance
 #define SUMO_SPIN_MS            350   // ms — spin phase of boundary avoidance
