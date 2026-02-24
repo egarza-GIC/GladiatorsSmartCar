@@ -326,9 +326,9 @@ void ApplicationFunctionSet::ApplicationFunctionSet_Sumo(void)
     Boundary check: white arena border reflects IR strongly → low analog value.
     Check any sensor below threshold (skip during delay countdown).
   */
-  bool boundaryLeft  = (TrackingData_L < SUMO_BOUNDARY_THRESHOLD);
-  bool boundaryMiddle = (TrackingData_M < SUMO_BOUNDARY_THRESHOLD);
-  bool boundaryRight = (TrackingData_R < SUMO_BOUNDARY_THRESHOLD);
+  bool boundaryLeft  = (TrackingData_L > SUMO_BOUNDARY_THRESHOLD);
+  bool boundaryMiddle = (TrackingData_M > SUMO_BOUNDARY_THRESHOLD);
+  bool boundaryRight = (TrackingData_R > SUMO_BOUNDARY_THRESHOLD);
   bool onBoundary = boundaryLeft || boundaryMiddle || boundaryRight;
 
   if (state != SUMO_DELAY && state != SUMO_AVOID_BOUNDARY && onBoundary)

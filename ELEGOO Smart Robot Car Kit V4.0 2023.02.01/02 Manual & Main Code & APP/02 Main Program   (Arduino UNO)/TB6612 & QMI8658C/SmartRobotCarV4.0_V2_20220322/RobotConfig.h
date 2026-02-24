@@ -19,10 +19,12 @@
 
 
 // --- Sumo: IR boundary detection ---
-// Sensors below this value = white boundary tape detected.
-// Glossy black floor reflects very little IR (high reading).
-// Matte white tape reflects a lot (low reading, ~30–80).
-#define SUMO_BOUNDARY_THRESHOLD  80   // tune lower to reduce false triggers
+// Sensors ABOVE this value = white boundary tape detected.
+// Dark floor = LOW reading (below ~250, same as line-follow logic).
+// White boundary tape = HIGH reading (same range as the tracked line, ~250–930).
+// Threshold sits above the floor range but below peak tape values.
+// Tune higher (e.g. 750) if floor triggers it; lower (e.g. 500) if tape is missed.
+#define SUMO_BOUNDARY_THRESHOLD 650   // sensors > this = on white boundary tape
 
 // --- Sumo: motor speeds (0–255) ---
 #define SUMO_SEARCH_SPEED        80   // creep speed while scanning
