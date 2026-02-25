@@ -147,6 +147,7 @@ public:
 #endif
   void DeviceDriverSet_Servo_control(unsigned int Position_angle);
   void DeviceDriverSet_Servo_controls(uint8_t Servo, unsigned int Position_angle);
+  void DeviceDriverSet_Servo_writeNoWait(unsigned int Position_angle); // non-blocking sweep
 
 public:
   uint8_t Position_angle_y, Position_angle_z;

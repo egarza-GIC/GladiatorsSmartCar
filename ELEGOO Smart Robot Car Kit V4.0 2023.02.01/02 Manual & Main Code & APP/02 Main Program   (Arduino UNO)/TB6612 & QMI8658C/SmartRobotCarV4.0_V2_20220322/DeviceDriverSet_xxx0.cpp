@@ -283,8 +283,7 @@ void DeviceDriverSet_ULTRASONIC::DeviceDriverSet_ULTRASONIC_Get(uint16_t *ULTRAS
   digitalWrite(TRIG_PIN, HIGH);
   delayMicroseconds(10);
   digitalWrite(TRIG_PIN, LOW);
-  tempda_x = ((unsigned int)pulseIn(ECHO_PIN, HIGH) / 58);
-  // *ULTRASONIC_Get = tempda_x;
+  tempda_x = ((unsigned int)pulseIn(ECHO_PIN, HIGH, 10000UL) / 58); // 10ms timeout (~170cm max)
 
   if (tempda_x > 150)
   {
@@ -378,6 +377,14 @@ void DeviceDriverSet_Servo::DeviceDriverSet_Servo_Test(void)
   // }
 }
 #endif
+
+/*Non-blocking servo write — commands angle with no wait, servo moves asynchronously*/
+void DeviceDriverSet_Servo::DeviceDriverSet_Servo_writeNoWait(unsigned int Position_angle)
+{
+  myservo.attach(PIN_Servo_z);
+  myservo.write(Position_angle);
+  Position_angle_z = Position_angle / 10;
+}
 
 /*0.17sec/60degree(4.8v)*/
 void DeviceDriverSet_Servo::DeviceDriverSet_Servo_control(unsigned int Position_angle)

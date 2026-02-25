@@ -19,29 +19,31 @@
 
 
 // --- Sumo: IR boundary detection (per-sensor) ---
-// Calibrated readings on outer black boundary tape: L=813, M=750, R=715 (±10 each).
-// Threshold = calibrated reading - 10 (catches low end of tape range).
-// Floor reads significantly lower and will not trigger these thresholds.
-#define SUMO_BOUNDARY_L  803   // L sensor triggers at >= 803
-#define SUMO_BOUNDARY_M  740   // M sensor triggers at >= 740
-#define SUMO_BOUNDARY_R  705   // R sensor triggers at >= 705
+// Calibrated floor readings:  L=370-460,  M=60-140,   R=43-50
+// Calibrated tape readings:   L=861-865,  M=753-759,  R=685-710
+// Thresholds set at midpoint between floor max and tape min for each sensor.
+#define SUMO_BOUNDARY_L  600   // L: floor max 460, tape min 861
+#define SUMO_BOUNDARY_M  400   // M: floor max 138, tape min 753
+#define SUMO_BOUNDARY_R  300   // R: floor max  50, tape min 685
 
 // --- Sumo: motor speeds (0–255) ---
-#define SUMO_SEARCH_SPEED        80   // creep speed while scanning
+#define SUMO_SEARCH_SPEED        50   // outer-wheel speed while arcing during search
+#define SUMO_SEARCH_INNER_SPEED  20   // inner-wheel speed — controls arc tightness (lower = tighter curve)
 #define SUMO_CHARGE_SPEED       255   // full-speed charge at opponent
-#define SUMO_REVERSE_SPEED      200   // reverse speed at boundary
+#define SUMO_REVERSE_SPEED      100   // reverse speed at boundary
 #define SUMO_SPIN_SPEED         150   // spin speed when turning away from boundary
 
 // --- Sumo: distances and timing ---
-#define SUMO_DETECT_DISTANCE_CM  60   // cm — ultrasonic opponent detection range
-#define SUMO_CONFIRM_COUNT        3   // consecutive readings required before charging (filters EMI spikes)
-#define SUMO_DELAY_MS          3000   // ms — motors-off countdown at mode start
-#define SUMO_REVERSE_MS         350   // ms — reverse phase of boundary avoidance
-#define SUMO_SPIN_MS            350   // ms — spin phase of boundary avoidance
+#define SUMO_DETECT_DISTANCE_CM     60   // cm — ultrasonic opponent detection range
+#define SUMO_CONFIRM_COUNT           2   // consecutive readings required before charging (filters EMI spikes)
+#define SUMO_ULTRASONIC_INTERVAL_MS 60   // ms between HC-SR04 pings — prevents echo crosstalk (datasheet min ~60ms)
+#define SUMO_DELAY_MS             3000   // ms — motors-off countdown at mode start
+#define SUMO_REVERSE_MS            350   // ms — reverse phase of boundary avoidance
+#define SUMO_SPIN_MS               700   // ms — spin 180° away from boundary (tune until rotation is clean)
 
 // --- Sumo: servo sweep ---
 #define SUMO_SERVO_STEP           5   // degrees per sweep step
-#define SUMO_SERVO_INTERVAL_MS   80   // ms between sweep steps
+#define SUMO_SERVO_INTERVAL_MS   40   // ms between sweep steps
 #define SUMO_SERVO_MIN           30   // degrees — sweep left limit
 #define SUMO_SERVO_MAX          150   // degrees — sweep right limit
 

@@ -307,6 +307,10 @@ void ApplicationFunctionSet::ApplicationFunctionSet_Sumo(void)
   static unsigned long servoTimer = 0;
   static SumoState stateBeforeBoundary = SUMO_SEARCH;
   static uint8_t detectCount = 0;
+  static bool avoidTurnRight = true; // captured at trigger time: true = spin right, false = spin left
+  static unsigned long ultrasonicTimer = 0;
+  static uint16_t distance = 0;
+  static bool arcRight = true; // alternates each boundary recovery so the robot curves a different way
 
   if (Application_SmartRobotCarxxx0.Functional_Mode != Sumo_mode)
   {
@@ -325,20 +329,30 @@ void ApplicationFunctionSet::ApplicationFunctionSet_Sumo(void)
     AppMotor.DeviceDriverSet_Motor_control(direction_void, 0, direction_void, 0, control_enable);
   }
 
-  uint16_t distance = 0;
+  /*Robot lifted — stop motors and bail before boundary check triggers on air readings*/
+  if (Car_LeaveTheGround == false)
+  {
+    AppMotor.DeviceDriverSet_Motor_control(direction_void, 0, direction_void, 0, control_enable);
+    return;
+  }
 
   /*
-    Boundary check: each sensor has its own calibrated threshold.
-    Calibrated tape readings: L=813, M=750, R=715 (±10).
-    Threshold = reading - 10 to catch the low end of the tape range.
+    Boundary check: read sensors fresh here rather than using cached TrackingData.
+    The ultrasonic blocking read takes 5-30ms; reading fresh ensures we catch the
+    tape even if the robot crossed it during the previous ultrasonic read.
   */
-  bool boundaryLeft   = (TrackingData_L >= SUMO_BOUNDARY_L);
-  bool boundaryMiddle = (TrackingData_M >= SUMO_BOUNDARY_M);
-  bool boundaryRight  = (TrackingData_R >= SUMO_BOUNDARY_R);
+  int irL = AppITR20001.DeviceDriverSet_ITR20001_getAnaloguexxx_L();
+  int irM = AppITR20001.DeviceDriverSet_ITR20001_getAnaloguexxx_M();
+  int irR = AppITR20001.DeviceDriverSet_ITR20001_getAnaloguexxx_R();
+  bool boundaryLeft   = (irL >= SUMO_BOUNDARY_L);
+  bool boundaryMiddle = (irM >= SUMO_BOUNDARY_M);
+  bool boundaryRight  = (irR >= SUMO_BOUNDARY_R);
   bool onBoundary = boundaryLeft || boundaryMiddle || boundaryRight;
 
   if (state != SUMO_DELAY && state != SUMO_AVOID_BOUNDARY && onBoundary)
   {
+    /*Lock in turn direction now — sensors may leave the tape as robot reverses*/
+    avoidTurnRight = !boundaryLeft; // boundary on left → turn right; otherwise → turn left
     stateBeforeBoundary = state;
     state = SUMO_AVOID_BOUNDARY;
     timer = millis();
@@ -359,37 +373,54 @@ void ApplicationFunctionSet::ApplicationFunctionSet_Sumo(void)
     break;
 
   case SUMO_SEARCH:
-    /*Creep forward slowly while sweeping servo to scan for opponent*/
-    AppMotor.DeviceDriverSet_Motor_control(direction_just, SUMO_SEARCH_SPEED, direction_just, SUMO_SEARCH_SPEED, control_enable);
+    /*Arc forward slowly — one wheel faster than the other so the robot curves.
+      Direction alternates each time boundary avoidance completes, covering the arena
+      in a widening spiral rather than bouncing straight into opposite walls.*/
+    if (arcRight)
+      AppMotor.DeviceDriverSet_Motor_control(direction_just, SUMO_SEARCH_SPEED, direction_just, SUMO_SEARCH_INNER_SPEED, control_enable);
+    else
+      AppMotor.DeviceDriverSet_Motor_control(direction_just, SUMO_SEARCH_INNER_SPEED, direction_just, SUMO_SEARCH_SPEED, control_enable);
     if (millis() - servoTimer > SUMO_SERVO_INTERVAL_MS)
     {
       servoTimer = millis();
       servoAngle += servoDir * SUMO_SERVO_STEP;
       if (servoAngle >= SUMO_SERVO_MAX) { servoAngle = SUMO_SERVO_MAX; servoDir = -1; }
       if (servoAngle <= SUMO_SERVO_MIN) { servoAngle = SUMO_SERVO_MIN; servoDir = 1;  }
-      AppServo.DeviceDriverSet_Servo_control(servoAngle);
+      AppServo.DeviceDriverSet_Servo_writeNoWait(servoAngle);
     }
-    AppULTRASONIC.DeviceDriverSet_ULTRASONIC_Get(&distance);
-    if (distance > 0 && distance <= SUMO_DETECT_DISTANCE_CM)
+    /*
+      HC-SR04 needs ~60ms between pings — firing faster causes residual echoes to corrupt
+      the next reading, making most returns 0 and breaking the consecutive-count logic.
+    */
+    if (millis() - ultrasonicTimer >= SUMO_ULTRASONIC_INTERVAL_MS)
     {
-      detectCount++;
-      if (detectCount >= SUMO_CONFIRM_COUNT)
+      ultrasonicTimer = millis();
+      AppULTRASONIC.DeviceDriverSet_ULTRASONIC_Get(&distance);
+      if (distance > 0 && distance <= SUMO_DETECT_DISTANCE_CM)
       {
-        /*Confirmed opponent — center servo and charge*/
-        detectCount = 0;
-        AppServo.DeviceDriverSet_Servo_control(90);
-        servoAngle = 90;
-        state = SUMO_CHARGE;
+        detectCount++;
+        if (detectCount >= SUMO_CONFIRM_COUNT)
+        {
+          /*Confirmed opponent — center servo and charge*/
+          detectCount = 0;
+          AppServo.DeviceDriverSet_Servo_writeNoWait(90);
+          servoAngle = 90;
+          state = SUMO_CHARGE;
+        }
       }
-    }
-    else
-    {
-      detectCount = 0;
+      else
+      {
+        detectCount = 0;
+      }
     }
     break;
 
   case SUMO_CHARGE:
-    AppULTRASONIC.DeviceDriverSet_ULTRASONIC_Get(&distance);
+    if (millis() - ultrasonicTimer >= SUMO_ULTRASONIC_INTERVAL_MS)
+    {
+      ultrasonicTimer = millis();
+      AppULTRASONIC.DeviceDriverSet_ULTRASONIC_Get(&distance);
+    }
     if (distance > 0 && distance <= SUMO_DETECT_DISTANCE_CM)
     {
       /*Full speed charge*/
@@ -404,12 +435,10 @@ void ApplicationFunctionSet::ApplicationFunctionSet_Sumo(void)
 
   case SUMO_AVOID_BOUNDARY:
     /*
-      Phase 1 (0–350ms): reverse away from boundary.
-      Phase 2 (350–700ms): spin to face back into ring.
-        - If left sensor triggered → spin right (boundary is on left side)
-        - If right sensor triggered → spin left (boundary is on right side)
-        - Otherwise (middle only) → spin right by default
-      After 700ms: resume previous state.
+      Phase 1: reverse away from boundary.
+      Phase 2: spin 180° to face back toward center.
+        Turn direction was locked in at trigger time (avoidTurnRight).
+      Tune SUMO_SPIN_MS in RobotConfig.h until the spin is a clean 180°.
     */
     if (millis() - timer < SUMO_REVERSE_MS)
     {
@@ -417,20 +446,19 @@ void ApplicationFunctionSet::ApplicationFunctionSet_Sumo(void)
     }
     else if (millis() - timer < (SUMO_REVERSE_MS + SUMO_SPIN_MS))
     {
-      if (boundaryLeft)
+      if (avoidTurnRight)
       {
-        /*Boundary was on left — spin right to face back inward*/
         AppMotor.DeviceDriverSet_Motor_control(direction_back, SUMO_SPIN_SPEED, direction_just, SUMO_SPIN_SPEED, control_enable);
       }
       else
       {
-        /*Boundary was on right or front — spin left*/
         AppMotor.DeviceDriverSet_Motor_control(direction_just, SUMO_SPIN_SPEED, direction_back, SUMO_SPIN_SPEED, control_enable);
       }
     }
     else
     {
-      /*Recovery done — go back to searching*/
+      /*Recovery done — flip arc direction so next search curves the other way, then search*/
+      arcRight = !arcRight;
       AppMotor.DeviceDriverSet_Motor_control(direction_void, 0, direction_void, 0, control_enable);
       state = SUMO_SEARCH;
     }
